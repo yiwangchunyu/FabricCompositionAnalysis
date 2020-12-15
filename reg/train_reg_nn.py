@@ -58,7 +58,7 @@ class MyNet(nn.Module):
         return out
 
 def train():
-    nepoch=200
+    nepoch=100
     batch_size=32
 
     train_data = MyDataset(DATA_REG_PATH)
