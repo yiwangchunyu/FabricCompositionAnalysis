@@ -34,11 +34,13 @@ class MyNet(nn.Module):
         super(MyNet, self).__init__()
         self.conv1 = nn.Sequential(
             nn.Conv1d(in_channels=in_channels, out_channels=5, kernel_size=5),
-            nn.LeakyReLU(0.1)
+            # nn.ReLU(inplace=True)
+            nn.Sigmoid()
         )
         self.conv2 = nn.Sequential(
             nn.Conv1d(in_channels=5, out_channels=1, kernel_size=5),
-            nn.ReLU(inplace=True)
+            # nn.ReLU(inplace=True)
+            nn.Sigmoid()
         )
 
         self.fc=nn.Sequential(
