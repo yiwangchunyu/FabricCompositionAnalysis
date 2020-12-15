@@ -33,12 +33,14 @@ class MyNet(nn.Module):
     def __init__(self,in_channels=3):
         super(MyNet, self).__init__()
         self.conv1 = nn.Sequential(
-            nn.Conv1d(in_channels=in_channels, out_channels=5, kernel_size=5),
+            nn.Conv1d(in_channels=in_channels, out_channels=10, kernel_size=5),
+            # nn.BatchNorm1d(10),
             # nn.ReLU(inplace=True)
             nn.Sigmoid()
         )
         self.conv2 = nn.Sequential(
-            nn.Conv1d(in_channels=5, out_channels=1, kernel_size=5),
+            nn.Conv1d(in_channels=10, out_channels=1, kernel_size=5),
+            # nn.BatchNorm1d(1),
             # nn.ReLU(inplace=True)
             nn.Sigmoid()
         )
@@ -47,6 +49,7 @@ class MyNet(nn.Module):
             nn.Linear(220,20),
             nn.BatchNorm1d(20),
             nn.ReLU(inplace=True),
+            # nn.Sigmoid(),
             nn.Linear(20, 2),
             nn.ReLU(inplace=True),
             nn.Softmax(dim=1)
