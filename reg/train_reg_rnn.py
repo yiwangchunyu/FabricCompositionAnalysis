@@ -38,7 +38,7 @@ class MyNet(nn.Module):
             # nn.ReLU(inplace=True)
             nn.Sigmoid()
         )
-        self.rnn = nn.LSTM(input_size=3, hidden_size=hidden_feature, num_layers=num_layers, batch_first=True)
+        self.rnn = nn.LSTM(input_size=3, hidden_size=hidden_feature, num_layers=num_layers, batch_first=True, bidirectional=False)
 
         self.fc=nn.Sequential(
             nn.Linear(hidden_feature,20),

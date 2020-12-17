@@ -36,13 +36,15 @@ class MyNet(nn.Module):
             nn.Conv1d(in_channels=in_channels, out_channels=10, kernel_size=5),
             # nn.BatchNorm1d(10),
             # nn.ReLU(inplace=True)
-            nn.Sigmoid()
+            nn.Sigmoid(),
+            # nn.MaxPool1d(2,2)
         )
         self.conv2 = nn.Sequential(
             nn.Conv1d(in_channels=10, out_channels=1, kernel_size=5),
             # nn.BatchNorm1d(1),
             # nn.ReLU(inplace=True)
-            nn.Sigmoid()
+            nn.Sigmoid(),
+            # nn.MaxPool1d(2, 2)
         )
 
         self.fc=nn.Sequential(

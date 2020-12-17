@@ -23,7 +23,7 @@ def preprocess(X):
     return feature_new
 
 def shallow():
-    trainX, trainY, testX, testY = pickle.load(open('data/data_reg.pkl', 'rb'))
+    trainX, trainY, testX, testY = pickle.load(open('../data/data_reg.pkl', 'rb'))
     trainXX = preprocess(trainX)
     testXX = preprocess(testX)
 
