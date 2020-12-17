@@ -65,7 +65,7 @@ class MyNet(nn.Module):
         return out
 
 def train():
-    nepoch=100
+    nepoch=200
     batch_size=32
 
     train_data = MyDataset(DATA_REG_PATH)
@@ -85,7 +85,8 @@ def train():
 
 
     net=MyNet()
-    criterion = nn.L1Loss()
+    # criterion = nn.L1Loss()
+    criterion = nn.SmoothL1Loss()
     # criterion = nn.MSELoss(reduction='mean')
 
     optimizer = optim.SGD(net.parameters(), lr=1e-3, momentum=0.99)
