@@ -99,7 +99,7 @@ class MyNet(nn.Module):
         return out_reg, out_clf
 
 def train():
-    nepoch=300
+    nepoch=1000
     batch_size=32
 
     train_data = MyDataset(DATA_REG_PATH)
@@ -231,5 +231,5 @@ def test():
     print(correct/len(testY), mae)
 
 if __name__=="__main__":
-    # train()
+    train()
     test()
