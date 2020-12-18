@@ -3,9 +3,9 @@ import numpy as np
 import torch
 from sklearn.metrics import mean_absolute_error
 from torch import nn, optim
-from torch.autograd.grad_mode import F
 from torch.utils.data import Dataset, DataLoader
 from torch.nn import functional as F
+import matplotlib.pyplot as plt
 
 DATA_REG_PATH = '../data/data_joint.pkl'
 
@@ -31,19 +31,26 @@ class MyDataset(Dataset):
         y=self.Y[idx]
         # onehot=np.zeros(2)
         # onehot[int(y[1])]=1
-        return torch.Tensor(x[1:]), torch.Tensor(y).long()
+        return torch.Tensor(x[1:]), torch.Tensor([y[0]/100,1-y[0]/100,y[1]])
 
 
 class JonitLoss(nn.Module):
-    def __init__(self):
+    def __init__(self, alpha=1):
         super().__init__()
+        self.alpha = alpha
 
     def forward(self, output, target):
         # CrossEntropyLoss+alpha*l*L1Loss
-        celoss = F.cross_entropy(output[1], target[:,1])
-        # _, predicted = torch.max(output[1], 1)
-        # out,tar=output[0][predicted==0], target[0][predicted==0]
-        return celoss
+        celoss = F.cross_entropy(output[1], target[:,2].long(), reduction='sum')
+        _, predicted = torch.max(output[1], 1)
+        out_reg=output[0]
+        sign=(1-target[:,2])
+        out_reg=torch.mul(out_reg,sign.reshape((sign.shape[0],1)))
+        tar_reg = torch.mul(target[:,:2], sign.reshape((sign.shape[0], 1)))
+        l1loss = F.l1_loss(out_reg, tar_reg, reduction='sum')
+        return celoss + self.alpha*l1loss
+
+        # return celoss
 
 
 
@@ -124,10 +131,19 @@ def train():
     net = net.to(device)
 
     best_acc=0
+    best_mae = 1e10
+    train_loss_plt=[]
+    test_loss_plt=[]
+    train_acc_plt=[]
+    test_acc_plt=[]
+    train_mae_plt=[]
+    test_mae_plt=[]
+
     for epoch in range(nepoch):
         correct = 0
         total=0
         loss_sum=0
+        mae=0
         for i, data in enumerate(train_loader):  # 0是下标起始位置默认为0
             net.train()
             inputs, labels = data[0].to(device), data[1].to(device)
@@ -140,13 +156,19 @@ def train():
 
             _, predicted = torch.max(outputs[1].data, 1)
             total += labels.size(0)
-            correct += (predicted == labels[:,1]).sum().item()
+            correct += (predicted == labels[:,2]).sum().item()
             loss_sum+=loss.item()
+
+            local_mae = mean_absolute_error(torch.mul(outputs[0][:, 0].cpu().detach(),1-labels[:,2].cpu().detach()),
+                                       torch.mul(labels[:, 0].cpu().detach(),1-labels[:,2].cpu().detach()))
+            mae += len(labels) * local_mae
 
         net.eval()
         correct_test = 0
         total_test = 0
         loss_sum_test=0
+        mae_test=0
+
         with torch.no_grad():
             for j, data_test in enumerate(test_loader):
                 inputs_test, labels_test = data_test[0].to(device), data_test[1].to(device)
@@ -154,13 +176,60 @@ def train():
                 outputs_test = net(inputs_test)
                 _, predicted = torch.max(outputs_test[1].data, 1)
                 total_test += labels_test.size(0)
-                correct_test += (predicted == labels_test[:,1]).sum().item()
+                correct_test += (predicted == labels_test[:,2]).sum().item()
                 loss_sum_test+=criterion(outputs_test, labels_test).item()
-        if correct_test/total_test>best_acc:
+                local_mae = mean_absolute_error(torch.mul(outputs_test[0][:,0].cpu().detach(),1-labels_test[:,2].cpu().detach()),
+                                                torch.mul(labels_test[:,0].cpu().detach(),1-labels_test[:,2].cpu().detach()))
+                mae_test += len(labels_test) * local_mae
+        if correct_test/total_test>=best_acc:
             best_acc=correct_test/total_test
+            if mae_test/total_test<=best_mae:
+                best_mae=mae_test/total_test
+                torch.save(net, 'weights/joint.pth')
+                print('model saved, %f,%f'%(best_acc, best_mae))
+        print("Epoch: %d/%d, train loss:%f, test loss:%f, train_acc=%d/%d=%f, test_acc=%d/%d=%f, best_acc=%f, train_mae:%f, test_mae:%f"%\
+              (epoch, nepoch, loss_sum/total, loss_sum_test/total_test, correct, total, correct/total, correct_test, total_test, correct_test/total_test, best_acc, mae/total, mae_test/total_test))
+        train_loss_plt.append(loss_sum/total)
+        test_loss_plt.append(loss_sum_test/total_test)
+        train_acc_plt.append(correct/total)
+        test_acc_plt.append(correct_test/total_test)
+        train_mae_plt.append(mae/len(train_loader))
+        test_mae_plt.append(mae_test/len(test_loader))
 
-        print("Epoch: %d/%d, train loss:%f, train_acc=%d/%d=%f, test loss:%f, test_acc=%d/%d=%f, best_acc=%f"%\
-              (epoch, nepoch, loss_sum/total, correct, total, correct/total, loss_sum_test/total_test, correct_test, total_test, correct_test/total_test, best_acc))
+    plt.plot(np.arange(len(train_loss_plt)),train_loss_plt, label='train_loss')
+    plt.legend()
+    plt.savefig('../expr/train_loss.png', dpi=300)
+    plt.savefig('../expr/train_loss.eps', dpi=300)
+    plt.show()
+    plt.plot(np.arange(len(test_loss_plt)), test_loss_plt, label='test_loss')
+    plt.legend()
+    plt.savefig('../expr/test_loss.png',dpi=300)
+    plt.savefig('../expr/test_loss.eps', dpi=300)
+    plt.show()
+    plt.plot(np.arange(len(train_acc_plt)), train_acc_plt, label='train_acc')
+    plt.plot(np.arange(len(test_acc_plt)), test_acc_plt, label='test_acc')
+    plt.legend()
+    plt.savefig('../expr/acc.png', dpi=300)
+    plt.savefig('../expr/acc.eps', dpi=300)
+    plt.show()
+    plt.plot(np.arange(len(train_mae_plt)), train_mae_plt, label='train_mae')
+    plt.plot(np.arange(len(test_mae_plt)), test_mae_plt, label='test_mae')
+    plt.legend()
+    plt.savefig('../expr/mae.png', dpi=300)
+    plt.savefig('../expr/mae.eps', dpi=300)
+    plt.show()
+    print('finish, %f,%f' % (best_acc, best_mae))
+
+def test():
+    trainX, trainY, testX, testY = pickle.load(open(DATA_REG_PATH, 'rb'))
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    net=torch.load('weights/joint.pth').to(device)
+    outputs = net(torch.Tensor(testX[:, 1:]).to(device))
+    _, predicted = torch.max(outputs[1].data, 1)
+    correct = (predicted == torch.Tensor(testY[:, 1]).long().to(device)).sum().item()
+    mae = mean_absolute_error(torch.mul(outputs[0][:, 0].cpu().detach(),torch.Tensor(1-testY[:, 1])),torch.mul(torch.Tensor(testY[:, 0])/100,torch.Tensor(1-testY[:, 1])))
+    print(correct/len(testY), mae)
 
 if __name__=="__main__":
-    train()
+    # train()
+    test()
